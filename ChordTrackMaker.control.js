@@ -23,7 +23,7 @@ const CHORDS = {
 const OCTAVES = [12, 24, 36, 48, 60, 72, 84, 96] // from C1 to C8
 
 function init () {
-  println('-- Chord Track Maker Ready --')
+  println('-- Chord Track Maker Ready2 --')
 
   const documentState = host.getDocumentState()
   const cursorClipArranger = host.createArrangerCursorClip((16 * 64), 128)
@@ -40,8 +40,7 @@ function init () {
   }
 
   documentState.getSignalSetting('Generate', 'Chord Track Maker', 'Generate').addSignalObserver(() => {
-    const clip = getCursorClip()
-
+    let clip = getCursorClip()
     clip.clearSteps()
     clip.scrollToStep(0)
 
@@ -57,9 +56,8 @@ function init () {
         chord.forEach(note => {
           const pitch = note + (oct - 60)
           if (pitch >= 0 && pitch <= 127) {
-            // Use velocity 0 as workaround for mute
             clip.setStep(position, pitch, 0, len / 4)
-            let step = clip.getStep(1, position, pitch,);
+            let step = clip.getStep(1, position, pitch)
             step.setIsMuted(true)
             step.setDuration(len / 4)
           }
@@ -68,13 +66,44 @@ function init () {
       position += len
     })
     clip.scrollToStep(position)
-    if (clipType.get() === 'Arranger') {
-      clip.setLoopLength(position)
-    }
   })
 
   documentState.getSignalSetting('Clear', 'Chord Track Maker', 'Clear').addSignalObserver(() => {
     getCursorClip().clearSteps()
+  })
+
+  documentState.getSignalSetting('Stacked', 'Chord Track Maker', 'Stacked (Normalize)').addSignalObserver(() => {
+    let clip = getCursorClip()
+    clip.clearSteps()
+    clip.scrollToStep(0)
+
+    const chords = chordInput.get().split(',').map(s => s.trim()).filter(Boolean)
+    const lengths = lengthInput.get().split(',').map(s => parseFloat(s.trim()) || 1.0)
+
+    let position = 0
+    chords.forEach((name, idx) => {
+      const len = (lengths[idx] || 1.0) * 16
+      const raw = CHORDS[name] || []
+      if (raw.length === 0) return
+
+      const sorted = raw.slice().sort((a, b) => a - b)
+      const base = 60 // C4
+
+      let bass = sorted[0] - 12
+      let mid = sorted[1]
+      let top = sorted[2]
+      if (sorted.length > 3) top = sorted[3] // 4-note chords fallback
+
+      const pitches = [bass, mid, top].filter(p => p >= 0 && p <= 127)
+      pitches.forEach(pitch => {
+        clip.setStep(position, pitch, 0, len / 4)
+        let step = clip.getStep(1, position, pitch)
+        step.setIsMuted(false)
+        step.setDuration(len / 4)
+      })
+      position += len
+    })
+    clip.scrollToStep(position)
   })
 }
 
