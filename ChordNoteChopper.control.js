@@ -1,7 +1,7 @@
 /**
  * Clip Note Chopper
  * Chops notes inside the currently selected launcher clip to fixed-length segments, POC
- * @version 0.5
+ * @version 0.5.2
  * @author Xbitz
  */
 
@@ -9,7 +9,7 @@ loadAPI(20)
 host.setShouldFailOnDeprecatedUse(true)
 host.defineController('Xbitz', 'Clip Note Chopper', '0.1', '2c0cd365-1ec4-4c11-b264-bac8c97db902', 'Xbitz')
 
-function init () {
+function init() {
     println('-- Clip Note Chopper Ready --')
 
     // Settings shown in Bitwig's controller panel
@@ -25,6 +25,8 @@ function init () {
     const cursorTrack = host.createCursorTrack(3, 16)
     const clip = host.createLauncherCursorClip(1024, 128)
     clip.scrollToStep(0)
+
+    const keyIndexMap = new Map()
 
     // Handler for chopping notes into fixed-length segments
     trigger.addSignalObserver(() => {
@@ -42,7 +44,7 @@ function init () {
             for (let key = 0; key < 128; key++) {
                 const note = clip.getStep(1, step, key)
                 if (note.state().toString() === "NoteOn") {
-                    collected.push({ step, key, duration: note.duration()})
+                    collected.push({step, key, duration: note.duration()})
                 }
             }
         }
@@ -57,7 +59,7 @@ function init () {
         clip.clearSteps()
 
         // For each note, write chopped segments
-        collected.forEach(({ step, key, duration }) => {
+        collected.forEach(({step, key, duration}) => {
             const durationInSteps = duration * stepsPerBeat
             const chopCount = Math.floor(durationInSteps / stepsPerChop)
             for (let i = 0; i < chopCount; i++) {
@@ -153,10 +155,13 @@ function init () {
             uniqueBlockKeys.sort((a, b) => a - b)
 
             // Apply sub-pattern mute states
+
             for (let step = 0; step < stepsPerBlock; step++) {
                 const absStep = stepOffset + step
                 for (let keyIndex = 0; keyIndex < uniqueBlockKeys.length; keyIndex++) {
                     const key = uniqueBlockKeys[keyIndex]
+                    const mapKey = `${absStep}:${key}`
+                    keyIndexMap.set(mapKey, keyIndex)
                     const note = clip.getStep(1, absStep, key)
                     if (note.state().toString() === 'NoteOn') {
                         const muteKey = `${keyIndex}:${step}`
@@ -177,20 +182,24 @@ function init () {
             for (let key = 0; key < 128; key++) {
                 const note = clip.getStep(1, step, key)
                 if (note.state().toString() === 'NoteOn' && !note.isMuted()) {
-                    retained.push({ step, key, duration: note.duration() })
+                    retained.push({step, key, duration: note.duration()})
                 }
             }
         }
         println(`Retaining ${retained.length} non-muted notes.`)
         clip.clearSteps()
-        retained.forEach(({ step, key, duration }) => {
-            clip.setStep(step, key, 80, duration)
+        retained.forEach(({step, key, duration}) => {
+            let channel = keyIndexMap.get(`${step}:${key}`)
+            print(step + "::" + key)
+            clip.setStep(channel, step, key, 80, duration)
         })
         println('→ Muted notes removed.')
     })
 }
 
-function flush () {}
-function exit () {
+function flush() {
+}
+
+function exit() {
     println('-- Clip Note Chopper Exit --')
 }
