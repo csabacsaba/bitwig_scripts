@@ -1,7 +1,7 @@
 /**
  * Clip Note Chopper
  * Chops notes inside the currently selected launcher clip to fixed-length segments, POC
- * @version 0.5.2
+ * @version 0.5.2.2
  * @author Xbitz
  */
 
@@ -94,6 +94,8 @@ function init() {
         const subPatternCount = Math.floor(stepsPerPattern / stepsPerBlock)
         const subPatterns = []
         const patternKeys = []
+
+        keyIndexMap.clear();
         let maxStep = 0
 
         // Determine the furthest step with content
