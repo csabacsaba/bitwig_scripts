@@ -2,13 +2,13 @@
  * Chord Track Maker
  * Controller script for Bitwig Studio
  * Generates muted chord notes across octaves based on user-defined chords and lengths
- * @version 0.1
+ * @version 0.3
  * @author Xbitz
  */
 
 loadAPI(20)
 host.setShouldFailOnDeprecatedUse(true)
-host.defineController('Xbitz', 'Chord Track Maker', '0.1', 'b3c83f2a-cc83-4ba2-8d7b-bfa85765a37e', 'Xbitz')
+host.defineController('Xbitz', 'Chord Track Maker', '0.3', 'b3c83f2a-cc83-4ba2-8d7b-bfa85765a37e', 'Xbitz')
 
 const CHORDS = {
   "A": [57, 61, 64], "Amin": [57, 60, 64], "Asus2": [57, 59, 64], "Asus4": [57, 62, 64], "Aaug": [57, 61, 65], "Adim": [57, 60, 63], "A7": [57, 61, 64, 67],
@@ -20,10 +20,10 @@ const CHORDS = {
   "G": [55, 59, 62], "Gmin": [55, 58, 62], "Gsus2": [55, 57, 62], "Gsus4": [55, 60, 62], "Gaug": [55, 59, 63], "Gdim": [55, 58, 61], "G7": [55, 59, 62, 65]
 }
 
-const OCTAVES = [12, 24, 36, 48, 60, 72, 84, 96] // from C1 to C8
+const OCTAVES = [12, 24, 36, 48, 60, 72, 84, 96, 108] // from C1 to C8
 
 function init () {
-  println('-- Chord Track Maker Ready2 --')
+  println('-- Chord Track Maker Ready3 --')
 
   const documentState = host.getDocumentState()
   const cursorClipArranger = host.createArrangerCursorClip((16 * 64), 128)
@@ -52,12 +52,15 @@ function init () {
       const len = (lengths[idx] || 1.0) * 16 // convert to steps per bar
       const chord = CHORDS[name] || []
 
+      const rootNote = chord[0]
+
       OCTAVES.forEach(oct => {
         chord.forEach(note => {
           const pitch = note + (oct - 60)
           if (pitch >= 0 && pitch <= 127) {
-            clip.setStep(position, pitch, 0, len / 4)
-            let step = clip.getStep(1, position, pitch)
+            const channel = (note === rootNote) ? 5 : 15
+            clip.setStep(channel, position, pitch, 0, len / 4)
+            let step = clip.getStep(channel, position, pitch)
             step.setIsMuted(true)
             step.setDuration(len / 4)
           }
@@ -87,6 +90,7 @@ function init () {
       if (raw.length === 0) return
 
       const sorted = raw.slice().sort((a, b) => a - b)
+      const rootNote = sorted[0]
       const base = 60 // C4
 
       let bass = sorted[0] - 12
@@ -96,8 +100,9 @@ function init () {
 
       const pitches = [bass, mid, top].filter(p => p >= 0 && p <= 127)
       pitches.forEach(pitch => {
-        clip.setStep(position, pitch, 0, len / 4)
-        let step = clip.getStep(1, position, pitch)
+        const channel = ((pitch % 12) === (rootNote % 12)) ? 4 : 1
+        clip.setStep(channel, position, pitch, 80, len / 4)
+        let step = clip.getStep(channel, position, pitch)
         step.setIsMuted(false)
         step.setDuration(len / 4)
       })
