@@ -1,13 +1,13 @@
 /**
  * Clip Note Rewriter
  * Rewrites notes in blocks and assigns MIDI channels based on a user-defined pattern.
- * @version 0.3
+ * @version 0.2
  * @author Xbitz
  */
 
 loadAPI(20);
 host.setShouldFailOnDeprecatedUse(true);
-host.defineController('Xbitz', 'Clip Note Rewriter', '0.3', 'b3c83f3b-cc83-4ba2-8d7b-bfa85765a38f', 'Xbitz');
+host.defineController('Xbitz', 'Clip Note Rewriter', '0.2', 'b3c83f3b-cc83-4ba2-8d7b-bfa85765a38f', 'Xbitz');
 
 function init () {
   println('-- Clip Note Rewriter Ready --');
@@ -26,7 +26,21 @@ function init () {
   }
 
   function parsePattern(str) {
-    return str.split(',').map(s => parseInt(s.trim()) - 1).filter(n => n >= 0 && n < 16);
+    const result = [];
+
+    str.split(',').forEach(entry => {
+      const parts = entry.trim().split('*');
+      const value = parseInt(parts[0], 10) - 1;
+
+      if (value < 0 || value >= 16 || isNaN(value)) return;
+
+      const count = parts.length === 2 ? parseInt(parts[1], 10) : 1;
+      if (isNaN(count) || count <= 0) return;
+
+      for (let i = 0; i < count; i++) result.push(value);
+    });
+
+    return result;
   }
 
   function rewriteBlocks() {
@@ -47,20 +61,7 @@ function init () {
       for (let key = 0; key < 128; key++) {
         const note = clip.getStep(0, step, key);
         if (note.state().toString() === 'NoteOn') {
-          allNotes.push({
-            step,
-            key,
-            length: note.duration(),
-            velocity: note.velocity(),
-            velocitySpread: note.velocitySpread(),
-            timbre: note.timbre(),
-            transpose: note.transpose(),
-            pan: note.pan(),
-            pressure: note.pressure(),
-            gain: note.gain(),
-            chance: note.chance(),
-            muted: note.isMuted()
-          });
+          allNotes.push({ step, key, length: note.duration(), velocity: note.velocity() });
           if (step > maxStep) maxStep = step;
         }
       }
@@ -84,19 +85,6 @@ function init () {
       blockNotes.forEach((note, i) => {
         const channel = pattern[i % pattern.length];
         clip.setStep(channel, note.step, note.key, Math.floor(note.velocity * 127), note.length);
-        const written = clip.getStep(channel, note.step, note.key);
-
-        written.setVelocity(note.velocity);
-        written.setVelocitySpread(note.velocitySpread);
-        written.setTimbre(note.timbre);
-        written.setTranspose(note.transpose);
-        written.setPan(note.pan);
-        written.setPressure(note.pressure);
-        written.setGain(note.gain);
-        written.setChance(note.chance);
-        written.setIsMuted(note.muted);
-
-        println(`Rewritten step=${note.step}, key=${note.key}, channel=${channel}`);
       });
     }
 
